@@ -1,4 +1,5 @@
-__author__ = 'tan_nguyen'
+from sklearn.utils import np_version
+__author__ = 'henry_zhong'
 import numpy as np
 from sklearn import datasets, linear_model
 import matplotlib.pyplot as plt
@@ -58,7 +59,7 @@ class NeuralNetwork(object):
         self.nn_output_dim = nn_output_dim
         self.actFun_type = actFun_type
         self.reg_lambda = reg_lambda
-        
+
         # initialize the weights and biases in the network
         np.random.seed(seed)
         self.W1 = np.random.randn(self.nn_input_dim, self.nn_hidden_dim) / np.sqrt(self.nn_input_dim)
@@ -76,6 +77,15 @@ class NeuralNetwork(object):
 
         # YOU IMPLMENT YOUR actFun HERE
 
+        if type == 'Tanh':
+            return np.tanh(z)
+        elif type == 'Sigmoid':
+            return 1.0/(1 + np.exp(-z))
+        elif type == 'ReLU':
+            return z * (z > 0)
+        else:
+            raise Exception(f'Input activation type, <{type}> is not supported')
+
         return None
 
     def diff_actFun(self, z, type):
@@ -87,6 +97,17 @@ class NeuralNetwork(object):
         '''
 
         # YOU IMPLEMENT YOUR diff_actFun HERE
+
+        if type == 'Tanh':
+            return 1 - np.square(self.actFun(z, 'Tanh'))
+        elif type == 'Sigmoid':
+            return self.actFun(z, 'Sigmoid')*(1 - self.actFun(z, 'Sigmoid'))
+        elif type == 'ReLU':
+            return z > 0
+        else:
+            raise Exception(f'Input activation type, <{type}> is not supported')
+
+        return None
 
         return None
 
@@ -101,10 +122,13 @@ class NeuralNetwork(object):
 
         # YOU IMPLEMENT YOUR feedforward HERE
 
-        # self.z1 =
-        # self.a1 =
-        # self.z2 =
-        # self.probs =
+        self.z1 = np.dot(X, self.W1) + self.b1
+        self.a1 = self.actFun(self.z1, type = self.actFun_type)
+        self.z2 = np.dot(self.a1, self.W2) + self.b2
+        x = self.z2 - np.max(self.z2)
+        self.probs = np.exp(x) /(np.sum(np.exp(x), axis=1, keepdims=True))
+
+        #  np.exp(x)/sum(np.exp(x))
         return None
 
     def calculate_loss(self, X, y):
@@ -120,7 +144,7 @@ class NeuralNetwork(object):
 
         # YOU IMPLEMENT YOUR CALCULATION OF THE LOSS HERE
 
-        # data_loss =
+        data_loss = np.sum(-np.log(self.probs[range(num_examples), y]))
 
         # Add regulatization term to loss (optional)
         data_loss += self.reg_lambda / 2 * (np.sum(np.square(self.W1)) + np.sum(np.square(self.W2)))
@@ -145,10 +169,18 @@ class NeuralNetwork(object):
 
         # IMPLEMENT YOUR BACKPROP HERE
 
-        # dW2 = dL/dW2
-        # db2 = dL/db2
-        # dW1 = dL/dW1
-        # db1 = dL/db1
+        dLdZ2 = self.probs
+        examples = len(X)
+        dLdZ2[range(examples), y] -= 1
+
+
+        dW2 = np.dot(self.a1.T, dLdZ2) #dL/dW2
+        db2 = np.sum(dLdZ2, axis = 0) #dL/db2
+
+        dLdZ1 = np.dot(dLdZ2, self.W2.T) * self.diff_actFun(self.z1, type = self.actFun_type)
+        dW1 = np.dot(X.T, dLdZ1) #dL/dW1
+        db1 = np.sum(dLdZ1, axis = 0) #dL/db1
+
         return dW1, dW2, db1, db2
 
     def fit_model(self, X, y, epsilon=0.01, num_passes=20000, print_loss=True):
@@ -192,14 +224,14 @@ class NeuralNetwork(object):
         plot_decision_boundary(lambda x: self.predict(x), X, y)
 
 def main():
-    # # generate and visualize Make-Moons dataset
-    # X, y = generate_data()
+    # generate and visualize Make-Moons dataset
+    X, y = generate_data()
     # plt.scatter(X[:, 0], X[:, 1], s=40, c=y, cmap=plt.cm.Spectral)
     # plt.show()
 
-    # model = NeuralNetwork(nn_input_dim=2, nn_hidden_dim=3 , nn_output_dim=2, actFun_type='tanh')
-    # model.fit_model(X,y)
-    # model.visualize_decision_boundary(X,y)
+    model = NeuralNetwork(nn_input_dim=2, nn_hidden_dim=3 , nn_output_dim=2, actFun_type='Tanh')
+    model.fit_model(X,y)
+    model.visualize_decision_boundary(X,y)
 
 if __name__ == "__main__":
     main()
